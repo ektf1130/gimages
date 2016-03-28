@@ -3,32 +3,56 @@ import re
 import urllib2
 import os
 import time
+from warnings import warn
+import argparse
 
 
-def get_soup(url,header):
-  return BeautifulSoup(urllib2.urlopen(urllib2.Request(url,headers=header)),
-                       "lxml")
+
+ATTEMPTS = 5  # In case of timeout, number of attempts to make
+WAIT_TIME = 5  # Time (in seconds) to wait between retries
 
 
-def get_gimages(query, saveloc=None, showimages=False):
+def get_user_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'search_term', 
+        help='the search term (use quotes for multi-word searches)',
+        metavar='SEARCH_TERMS'
+        )
+    parser.add_argument(
+        '--out',
+        dest='output_directory',
+        default=os.getcwd(),
+        help='the output directory (defaults to current working directory)',
+        metavar='OUTPUT_DIRECTORY'
+        )
+    parser.add_argument(
+        '--show',
+        dest='show_images',
+        action='store_const',
+        const=True,
+        default=False,
+        help='open the saved images in the default viewer',
+        metavar='SHOW_IMAGES'
+        )
+    return parser.parse_args()
+
+
+def get_gimages(query, out_dir, showimages=False):
     filename_base = query
-    if saveloc is not None:
-        directory = os.path.join(saveloc, query)
+    directory = os.path.join(out_dir, query)
+    try:
         if not os.path.exists(directory):
-            try:
-                os.makedirs(directory)
-            except WindowsError:
-                t = str(time.time()).replace('.','')
-                local_dir_name = "search_" + t
-                filename_base = local_dir_name
-                print "\n Warning: query no good for use as windows "\
-                    "directory name.  Images from query " + query + "will be "\
-                    "saved in:\n"
-                directory = os.path.join(saveloc, local_dir_name)
-                os.makedirs(directory)
-                print directory
-    else:
-        directory = os.getcwd()
+            os.makedirs(directory)
+    except:
+        t = str(time.time()).replace('.','')
+        local_dir_name = "search_" + t
+        filename_base = ""
+        directory = os.path.join(saveloc, local_dir_name)
+        warn("\nWarning: query no good for use as windows directory "
+             "name.  Images from query {} will be saved in:\n{}"
+             "".format(query, directory))
+        os.makedirs(directory)
 
     # you can change the query for the image  here
     query= query.split()
@@ -37,7 +61,7 @@ def get_gimages(query, saveloc=None, showimages=False):
 
     #print url
     header = {'User-Agent': 'Mozilla/5.0'}
-    soup = get_soup(url,header)
+    soup = BeautifulSoup(urllib2.urlopen(urllib2.Request(url, headers=header)), "lxml")
 
     images = [a['src'] for a in soup.find_all("img",
               {"src": re.compile("gstatic.com")})]
@@ -54,28 +78,17 @@ def get_gimages(query, saveloc=None, showimages=False):
         f.close()
 
 
-#test
-test_queries = ["amazing",
-                "cool",
-                "super crazy awesome photo",
-                "42?"]
-save_location = "C:\\Users\\Andy\\Desktop\\gimages\\"
-attempts = 5
-pausetime = 5
-for q in test_queries:
-    print '\n' + q + ":"
-    for attempt in range(1,attempts):
+if __name__ == '__main__':
+    options = get_user_args()
+
+    for attempt in range(1, ATTEMPTS):
         try:
-            get_gimages(q, saveloc=save_location)
+            get_gimages(options.search_term, options.output_directory, 
+                showimages=options.show_images)
             break
         except urllib2.URLError:
-            print "Attempt %s / %s failed." % (attempt, attempts)
-            if attempt >= attempts:
-                print "Moving on."
-                break
-            print "Retrying in %s seconds..." % pausetime
-            time.sleep(pausetime)
-
-
-    time.sleep(5)  # seems to prevent a time-out when
+            print "Attempt {} / {} failed.  ".format(attempt, ATTEMPTS),
+            if attempt < ATTEMPTS:
+                print "Retrying in {} seconds...".format(WAIT_TIME)
+                time.sleep(WAIT_TIME)
 
