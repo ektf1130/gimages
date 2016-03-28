@@ -26,19 +26,10 @@ def get_user_args():
         help='the output directory (defaults to current working directory)',
         metavar='OUTPUT_DIRECTORY'
         )
-    parser.add_argument(
-        '--show',
-        dest='show_images',
-        action='store_const',
-        const=True,
-        default=False,
-        help='open the saved images in the default viewer',
-        metavar='SHOW_IMAGES'
-        )
     return parser.parse_args()
 
 
-def get_gimages(query, out_dir, showimages=False):
+def get_gimages(query, out_dir):
     filename_base = query
     directory = os.path.join(out_dir, query)
     try:
@@ -54,28 +45,23 @@ def get_gimages(query, out_dir, showimages=False):
              "".format(query, directory))
         os.makedirs(directory)
 
-    # you can change the query for the image  here
     query= query.split()
     query='+'.join(query)
     url="https://www.google.com/search?q=" + query + "&tbm=isch"
 
-    #print url
     header = {'User-Agent': 'Mozilla/5.0'}
     soup = BeautifulSoup(urllib2.urlopen(urllib2.Request(url, headers=header)), "lxml")
 
     images = [a['src'] for a in soup.find_all("img",
               {"src": re.compile("gstatic.com")})]
-    #print images
+
     for k, img in enumerate(images):
         img_num = k + 1
         raw_img = urllib2.urlopen(img).read()
-        #add the directory for your image here
 
-        print img_num,
         filename = filename_base + "_" + str(img_num) + '.jpg'
-        f = open(os.path.join(directory, filename), 'wb')
-        f.write(raw_img)
-        f.close()
+        with open(os.path.join(directory, filename), 'wb') as f:
+            f.write(raw_img)
 
 
 if __name__ == '__main__':
@@ -83,8 +69,7 @@ if __name__ == '__main__':
 
     for attempt in range(1, ATTEMPTS):
         try:
-            get_gimages(options.search_term, options.output_directory, 
-                showimages=options.show_images)
+            get_gimages(options.search_term, options.output_directory)
             break
         except urllib2.URLError:
             print "Attempt {} / {} failed.  ".format(attempt, ATTEMPTS),
