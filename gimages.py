@@ -7,7 +7,6 @@ from warnings import warn
 import argparse
 
 
-
 ATTEMPTS = 5  # In case of timeout, number of attempts to make
 WAIT_TIME = 5  # Time (in seconds) to wait between retries
 
@@ -76,4 +75,3 @@ if __name__ == '__main__':
             if attempt < ATTEMPTS:
                 print "Retrying in {} seconds...".format(WAIT_TIME)
                 time.sleep(WAIT_TIME)
-
